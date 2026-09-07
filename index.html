@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NL Production — Espace équipe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<style>
+:root{
+  --bg:#08080a;
+  --bg-alt:#111116;
+  --panel:rgba(22,22,27,0.62);
+  --panel-solid:#16161b;
+  --border:rgba(245,242,234,0.09);
+  --border-strong:rgba(245,242,234,0.18);
+  --text:#f2efe6;
+  --text-dim:#9a97a0;
+  --text-faint:#5f5d66;
+  --accent:#f5a623;
+  --accent-dim:#c98618;
+  --accent-wash:rgba(245,166,35,0.12);
+  --danger:#e2483d;
+  --danger-wash:rgba(226,72,61,0.14);
+  --success:#4caf7d;
+  --success-wash:rgba(76,175,125,0.14);
+  --radius:6px;
+  --radius-sm:2px;
+  --font-display:'Bebas Neue',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:
+    radial-gradient(ellipse at 20% -10%, #1b1610 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 110%, #0f1512 0%, transparent 50%),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+#grain{
+  position:fixed;inset:0;pointer-events:none;z-index:999;opacity:0.035;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+input,textarea{font-family:inherit;color:var(--text);}
+.hidden{display:none !important;}
+.view{display:none;min-height:100vh;}
+.view.active{display:block;}
+
+/* ---------- glass panel ---------- */
+.glass{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+
+/* ---------- AUTH VIEW ---------- */
+#view-auth{
+  display:none;
+  align-items:center;justify-content:center;
+  padding:24px;
+}
+#view-auth.active{display:flex;}
+.auth-backdrop{
+  position:fixed;inset:0;z-index:0;
+  background:
+    linear-gradient(180deg, rgba(8,8,10,0.2) 0%, rgba(8,8,10,0.85) 78%, #08080a 100%),
+    linear-gradient(115deg, transparent 40%, rgba(245,166,35,0.05) 48%, transparent 56%);
+}
+.auth-panel{
+  position:relative;z-index:1;
+  width:100%;max-width:400px;
+  padding:40px 36px 36px;
+  animation:reveal 0.7s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes reveal{
+  from{opacity:0;transform:translateY(14px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.brand{display:flex;align-items:baseline;gap:8px;margin-bottom:32px;}
+.brand-mark{
+  font-family:var(--font-display);font-size:34px;letter-spacing:1px;color:var(--accent);line-height:1;
+}
+.brand-name{
+  font-family:var(--font-display);font-size:20px;letter-spacing:3px;color:var(--text-dim);line-height:1;
+}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:26px;}
+.tab-btn{
+  flex:1;padding:0 0 12px;font-size:14px;font-weight:600;color:var(--text-faint);
+  border-bottom:2px solid transparent;transition:color .2s ease, border-color .2s ease;
+}
+.tab-btn.active{color:var(--text);border-bottom-color:var(--accent);}
+.auth-form{display:none;flex-direction:column;gap:14px;}
+.auth-form.active{display:flex;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:12px;color:var(--text-dim);}
+.field input, .field textarea{
+  background:rgba(0,0,0,0.28);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:11px 12px;font-size:14px;transition:border-color .15s ease;resize:vertical;
+}
+.field input:focus, .field textarea:focus{outline:none;border-color:var(--accent);}
+.btn{
+  padding:12px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;
+  transition:filter .15s ease, transform .1s ease;
+}
+.btn:active{transform:scale(0.98);}
+.btn-primary{background:var(--accent);color:#1a1204;margin-top:6px;}
+.btn-primary:hover{filter:brightness(1.08);}
+.btn-primary:focus-visible, .tab-btn:focus-visible, .nav-item:focus-visible, .btn-ghost:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px;
+}
+.btn-ghost{border:1px solid var(--border-strong);color:var(--text-dim);}
+.btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+.btn-small{padding:8px 12px;font-size:12.5px;}
+.btn-outline-success{border:1px solid var(--success);color:var(--success);}
+.btn-outline-success:hover{background:var(--success-wash);}
+.btn-outline-danger{border:1px solid var(--danger);color:var(--danger);}
+.btn-outline-danger:hover{background:var(--danger-wash);}
+.form-error{
+  font-size:12.5px;color:var(--danger);min-height:16px;
+}
+
+/* ---------- APP SHELL (user + admin) ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 28px;border-bottom:1px solid var(--border);
+  background:rgba(10,10,12,0.7);backdrop-filter:blur(10px);
+  position:sticky;top:0;z-index:10;
+}
+.topbar .brand{margin:0;}
+.topbar .brand-mark{font-size:24px;}
+.topbar .brand-name{font-size:14px;letter-spacing:2px;}
+.who{display:flex;align-items:center;gap:16px;}
+.who-name{font-size:13px;color:var(--text-dim);}
+.who-name b{color:var(--text);font-weight:600;}
+
+.layout{display:flex;min-height:calc(100vh - 61px);}
+.sidenav{
+  width:210px;flex-shrink:0;border-right:1px solid var(--border);
+  padding:24px 12px;display:flex;flex-direction:column;gap:2px;
+}
+.nav-item{
+  text-align:left;padding:11px 14px;border-radius:var(--radius-sm);font-size:14px;color:var(--text-dim);
+  border-left:2px solid transparent;transition:all .15s ease;
+}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,0.03);}
+.nav-item.active{color:var(--text);border-left-color:var(--accent);background:var(--accent-wash);}
+.content{flex:1;padding:36px 40px;max-width:920px;}
+.panel{display:none;}
+.panel.active{display:block;animation:fadein .35s ease both;}
+@keyframes fadein{from{opacity:0;}to{opacity:1;}}
+
+h1.page-title{font-family:var(--font-display);font-size:32px;letter-spacing:0.5px;margin-bottom:6px;}
+.page-sub{color:var(--text-dim);font-size:13.5px;margin-bottom:28px;}
+
+/* ---------- documents ---------- */
+.upload-zone{
+  border:1px dashed var(--border-strong);border-radius:var(--radius);
+  padding:22px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin-bottom:24px;flex-wrap:wrap;
+}
+.upload-zone .hint{font-size:12.5px;color:var(--text-faint);}
+.file-input-label{
+  display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:var(--radius-sm);
+  background:var(--accent);color:#1a1204;font-size:13.5px;font-weight:600;
+}
+.file-input-label input{display:none;}
+.doc-list, .shift-list, .announce-list, .leave-list{display:flex;flex-direction:column;gap:10px;}
+.doc-row, .shift-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius);
+  background:rgba(255,255,255,0.015);flex-wrap:wrap;
+}
+.doc-row .doc-name{font-size:14px;font-weight:500;}
+.doc-row .doc-meta{font-size:11.5px;color:var(--text-faint);font-family:var(--font-mono);}
+.doc-row .doc-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.row-actions{display:flex;gap:8px;flex-shrink:0;align-items:center;}
+.icon-btn{
+  width:32px;height:32px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--border-strong);color:var(--text-dim);font-size:14px;
+}
+.icon-btn:hover{color:var(--text);border-color:var(--accent);}
+.icon-btn.danger:hover{color:var(--danger);border-color:var(--danger);}
+.empty-state{
+  padding:40px 20px;text-align:center;color:var(--text-faint);font-size:13.5px;
+  border:1px solid var(--border);border-radius:var(--radius);
+}
+
+/* ---------- status badges ---------- */
+.badge{
+  display:inline-block;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:20px;
+  background:rgba(245,166,35,0.14);color:var(--accent);white-space:nowrap;
+}
+.badge-pending{background:var(--accent-wash);color:var(--accent);}
+.badge-approved{background:var(--success-wash);color:var(--success);}
+.badge-rejected{background:var(--danger-wash);color:var(--danger);}
+
+/* ---------- schedule (list rows used inside day detail) ---------- */
+.shift-row .shift-date{font-family:var(--font-mono);font-size:13px;color:var(--accent);width:110px;flex-shrink:0;}
+.shift-row .shift-time{font-family:var(--font-mono);font-size:13px;color:var(--text);width:110px;flex-shrink:0;}
+.shift-row .shift-note{font-size:13px;color:var(--text-dim);flex:1;}
+
+/* ---------- calendar ---------- */
+.cal-wrap{border:1px solid var(--border);border-radius:var(--radius);padding:18px;background:rgba(255,255,255,0.015);margin-bottom:18px;}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.cal-nav .cal-label{font-family:var(--font-display);font-size:19px;letter-spacing:0.5px;text-transform:capitalize;}
+.cal-nav-btns{display:flex;gap:6px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-dow{text-align:center;font-size:11px;color:var(--text-faint);padding:4px 0 8px;}
+.cal-cell{
+  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border-radius:var(--radius-sm);font-size:13px;color:var(--text-dim);position:relative;
+  border:1px solid transparent;
+}
+.cal-cell.in-month{color:var(--text);}
+.cal-cell.is-today{border-color:var(--border-strong);}
+.cal-cell.clickable{cursor:pointer;}
+.cal-cell.clickable:hover{background:rgba(255,255,255,0.04);}
+.cal-cell.selected{background:var(--accent-wash);border-color:var(--accent);}
+.cal-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);}
+.cal-detail-title{font-size:13px;color:var(--text-dim);margin-bottom:10px;}
+
+/* ---------- admin ---------- */
+.admin-content{max-width:1040px;}
+.user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.user-card{
+  border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:left;
+  background:rgba(255,255,255,0.015);transition:border-color .15s ease, transform .1s ease;
+}
+.user-card:hover{border-color:var(--accent);transform:translateY(-1px);}
+.user-card .u-name{font-size:15px;font-weight:600;margin-bottom:4px;}
+.user-card .u-email{font-size:12.5px;color:var(--text-faint);margin-bottom:10px;}
+.back-link{font-size:13px;color:var(--text-dim);margin-bottom:22px;display:inline-block;}
+.back-link:hover{color:var(--accent);}
+.profile-header{margin-bottom:28px;}
+.profile-header .p-name{font-family:var(--font-display);font-size:28px;letter-spacing:0.5px;}
+.profile-header .p-email{color:var(--text-dim);font-size:13.5px;}
+.profile-columns{display:grid;grid-template-columns:1fr 1.15fr;gap:36px;}
+.profile-columns h2{font-size:15px;font-weight:600;margin-bottom:14px;color:var(--text-dim);}
+.shift-form{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px;background:rgba(255,255,255,0.015);
+}
+.shift-form .field-note{grid-column:1 / -1;}
+.shift-form .btn{grid-column:1 / -1;}
+
+/* ---------- announcements ---------- */
+.announce-form{
+  display:flex;flex-direction:column;gap:10px;margin-bottom:24px;
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px;background:rgba(255,255,255,0.015);
+}
+.announce-card{
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;background:rgba(255,255,255,0.015);
+}
+.announce-card .a-title{font-size:15px;font-weight:600;margin-bottom:6px;}
+.announce-card .a-body{font-size:13.5px;color:var(--text-dim);line-height:1.55;margin-bottom:10px;white-space:pre-wrap;}
+.announce-card .a-meta{font-size:11px;color:var(--text-faint);font-family:var(--font-mono);display:flex;justify-content:space-between;align-items:center;}
+
+/* ---------- leave requests ---------- */
+.leave-form{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px;background:rgba(255,255,255,0.015);
+}
+.leave-form .field-full{grid-column:1 / -1;}
+.leave-form .btn{grid-column:1 / -1;}
+.leave-card{
+  border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;background:rgba(255,255,255,0.015);
+  display:flex;flex-direction:column;gap:8px;
+}
+.leave-card .l-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.leave-card .l-name{font-size:13.5px;font-weight:600;}
+.leave-card .l-dates{font-family:var(--font-mono);font-size:13px;color:var(--accent);}
+.leave-card .l-reason{font-size:13px;color:var(--text-dim);}
+.leave-card .l-actions{display:flex;gap:8px;margin-top:2px;}
+
+@media (max-width:800px){
+  .layout{flex-direction:column;}
+  .sidenav{width:100%;flex-direction:row;border-right:none;border-bottom:1px solid var(--border);padding:10px 16px;overflow-x:auto;}
+  .content{padding:26px 20px;}
+  .profile-columns{grid-template-columns:1fr;}
+  .shift-form, .leave-form{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important;transition-duration:0.001ms !important;}
+}
+</style>
+</head>
+<body>
+<div id="grain"></div>
+<div id="app">
+
+  <!-- ===================== AUTH ===================== -->
+  <section id="view-auth" class="view active">
+    <div class="auth-backdrop"></div>
+    <div class="auth-panel glass">
+      <div class="brand">
+        <span class="brand-mark">NL</span>
+        <span class="brand-name">PRODUCTION</span>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="tab-btn active" data-tab="login">Connexion</button>
+        <button class="tab-btn" data-tab="signup">Créer un compte</button>
+      </div>
+
+      <form id="form-login" class="auth-form active">
+        <div class="field">
+          <label for="login-email">Adresse e-mail</label>
+          <input type="email" id="login-email" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="login-password">Mot de passe</label>
+          <input type="password" id="login-password" required autocomplete="current-password">
+        </div>
+        <div class="form-error" id="login-error"></div>
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+      </form>
+
+      <form id="form-signup" class="auth-form">
+        <div class="field">
+          <label for="signup-name">Nom complet</label>
+          <input type="text" id="signup-name" required autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="signup-email">Adresse e-mail</label>
+          <input type="email" id="signup-email" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="signup-password">Mot de passe</label>
+          <input type="password" id="signup-password" required autocomplete="new-password" minlength="6">
+        </div>
+        <div class="form-error" id="signup-error"></div>
+        <button type="submit" class="btn btn-primary">Créer mon compte</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== USER (EMPLOYÉ) ===================== -->
+  <section id="view-user" class="view">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">NL</span><span class="brand-name">PRODUCTION</span></div>
+      <div class="who">
+        <span class="who-name">Connecté·e — <b id="user-name-display"></b></span>
+        <button class="btn btn-ghost btn-small" id="btn-logout-user">Se déconnecter</button>
+      </div>
+    </header>
+    <div class="layout">
+      <nav class="sidenav">
+        <button class="nav-item active" data-panel="home">Accueil</button>
+        <button class="nav-item" data-panel="docs">Mes documents</button>
+        <button class="nav-item" data-panel="schedule">Mes horaires</button>
+        <button class="nav-item" data-panel="leave">Mes disponibilités</button>
+      </nav>
+      <main class="content">
+
+        <div id="panel-home" class="panel active">
+          <h1 class="page-title">Annonces</h1>
+          <p class="page-sub">Les dernières informations de l'équipe.</p>
+          <div class="announce-list" id="user-announce-list"></div>
+        </div>
+
+        <div id="panel-docs" class="panel">
+          <h1 class="page-title">Mes documents</h1>
+          <p class="page-sub">Dépose ici tes justificatifs, contrats ou pièces demandées par l'équipe.</p>
+          <div class="upload-zone">
+            <span class="hint">Formats acceptés : PDF, image, Word — 2 Mo maximum.</span>
+            <label class="file-input-label">
+              Ajouter un document
+              <input type="file" id="file-input">
+            </label>
+          </div>
+          <div class="form-error" id="upload-error"></div>
+          <div class="doc-list" id="user-doc-list"></div>
+        </div>
+
+        <div id="panel-schedule" class="panel">
+          <h1 class="page-title">Mes horaires</h1>
+          <p class="page-sub">Le planning est mis à jour par l'équipe administrative. Clique un jour marqué pour voir le détail.</p>
+          <div class="cal-wrap">
+            <div class="cal-nav">
+              <button class="icon-btn" onclick="changeMonth('user',-1)">‹</button>
+              <span class="cal-label" id="user-cal-label"></span>
+              <button class="icon-btn" onclick="changeMonth('user',1)">›</button>
+            </div>
+            <div class="cal-grid" id="user-cal-grid"></div>
+          </div>
+          <div class="cal-detail-title" id="user-cal-detail-title"></div>
+          <div class="shift-list" id="user-cal-detail"></div>
+        </div>
+
+        <div id="panel-leave" class="panel">
+          <h1 class="page-title">Mes disponibilités</h1>
+          <p class="page-sub">Envoie une demande de congé ou d'indisponibilité pour une période donnée.</p>
+          <form class="leave-form" id="form-leave-request">
+            <div class="field">
+              <label for="leave-start">Du</label>
+              <input type="date" id="leave-start" required>
+            </div>
+            <div class="field">
+              <label for="leave-end">Au</label>
+              <input type="date" id="leave-end" required>
+            </div>
+            <div class="field field-full">
+              <label for="leave-reason">Motif</label>
+              <input type="text" id="leave-reason" placeholder="Ex. Congés, indisponible pour raison personnelle…">
+            </div>
+            <button type="submit" class="btn btn-primary btn-small">Envoyer la demande</button>
+          </form>
+          <div class="leave-list" id="user-leave-list"></div>
+        </div>
+
+      </main>
+    </div>
+  </section>
+
+  <!-- ===================== ADMIN ===================== -->
+  <section id="view-admin" class="view">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">NL</span><span class="brand-name">PRODUCTION · ADMIN</span></div>
+      <div class="who">
+        <span class="who-name">Connecté·e — <b id="admin-name-display"></b></span>
+        <button class="btn btn-ghost btn-small" id="btn-logout-admin">Se déconnecter</button>
+      </div>
+    </header>
+    <div class="layout">
+      <nav class="sidenav">
+        <button class="nav-item active" data-panel="team">Équipe</button>
+        <button class="nav-item" data-panel="announcements">Annonces</button>
+        <button class="nav-item" data-panel="leave">Demandes de congés</button>
+      </nav>
+      <main class="content admin-content">
+
+        <div id="panel-team" class="panel active">
+          <div id="admin-list-wrap">
+            <h1 class="page-title">Équipe</h1>
+            <p class="page-sub">Clique sur une personne pour voir ses documents et gérer son planning.</p>
+            <div class="user-grid" id="admin-user-list"></div>
+          </div>
+
+          <div id="admin-profile-wrap" class="hidden">
+            <a href="#" class="back-link" id="btn-back-list">← Retour à l'équipe</a>
+            <div class="profile-header">
+              <div class="p-name" id="profile-name"></div>
+              <div class="p-email" id="profile-email"></div>
+            </div>
+            <div class="profile-columns">
+              <div class="profile-col">
+                <h2>Documents déposés</h2>
+                <div class="doc-list" id="admin-profile-docs"></div>
+              </div>
+              <div class="profile-col">
+                <h2>Planning</h2>
+                <form class="shift-form" id="form-add-shift">
+                  <div class="field">
+                    <label for="shift-date">Date</label>
+                    <input type="date" id="shift-date" required>
+                  </div>
+                  <div class="field">
+                    <label for="shift-start">Début</label>
+                    <input type="time" id="shift-start" required>
+                  </div>
+                  <div class="field">
+                    <label for="shift-end">Fin</label>
+                    <input type="time" id="shift-end" required>
+                  </div>
+                  <div class="field field-note">
+                    <label for="shift-note">Note (lieu, mission…)</label>
+                    <input type="text" id="shift-note" placeholder="Ex. Régie son — Château de Vallon">
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-small">Ajouter au planning</button>
+                </form>
+                <div class="cal-wrap">
+                  <div class="cal-nav">
+                    <button class="icon-btn" onclick="changeMonth('admin',-1)">‹</button>
+                    <span class="cal-label" id="admin-cal-label"></span>
+                    <button class="icon-btn" onclick="changeMonth('admin',1)">›</button>
+                  </div>
+                  <div class="cal-grid" id="admin-cal-grid"></div>
+                </div>
+                <div class="cal-detail-title" id="admin-cal-detail-title"></div>
+                <div class="shift-list" id="admin-cal-detail"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="panel-announcements" class="panel">
+          <h1 class="page-title">Annonces</h1>
+          <p class="page-sub">Publie une information visible par toute l'équipe.</p>
+          <form class="announce-form" id="form-announce">
+            <div class="field">
+              <label for="announce-title">Titre</label>
+              <input type="text" id="announce-title" required>
+            </div>
+            <div class="field">
+              <label for="announce-body">Message</label>
+              <textarea id="announce-body" rows="4" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-small">Publier</button>
+          </form>
+          <div class="announce-list" id="admin-announce-list"></div>
+        </div>
+
+        <div id="panel-leave" class="panel">
+          <h1 class="page-title">Demandes de congés</h1>
+          <p class="page-sub">Toutes les demandes de disponibilité envoyées par l'équipe.</p>
+          <div class="leave-list" id="admin-leave-list"></div>
+        </div>
+
+      </main>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURATION — à compléter avant mise en ligne
+   ===================================================================== */
+
+// 1) Colle ici la config de ton projet Firebase (Console Firebase >
+//    Paramètres du projet > Tes applications > Config SDK).
+const firebaseConfig = {
+  apiKey: "AIzaSyDziYM0kObVHlNy1nv0xPyVK1t0qY_WP8o",
+  authDomain: "plateforme-eccc0.firebaseapp.com",
+  databaseURL: "https://plateforme-eccc0-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "plateforme-eccc0",
+  storageBucket: "plateforme-eccc0.firebasestorage.app",
+  messagingSenderId: "271916142524",
+  appId: "1:271916142524:web:4ba74a43b2f9b65b05a5b9"
+};
+
+// 2) Toute adresse listée ici devient automatiquement administratrice
+//    dès la création de son compte.
+const ADMIN_EMAILS = ["nathan.lamoste3@gmail.com"];
+
+// 3) Taille maximale d'un document déposé (en octets). 2 Mo par défaut.
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+
+/* =====================================================================
+   INITIALISATION
+   ===================================================================== */
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let currentUid = null;
+let currentRole = null;
+let currentUserName = null;
+let adminViewingUid = null;
+let docsRef = null, shiftsRef = null; // active listeners refs for cleanup (profile-scoped)
+let userAnnounceRef = null, adminAnnounceRef = null;
+let userLeaveRef = null, adminLeaveRef = null;
+
+const MONTH_NAMES = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const DOW_LABELS = ['L','M','M','J','V','S','D'];
+
+// Calendar state + shift cache per scope ('user' | 'admin')
+const calState = {
+  user:  { year:null, month:null, selected:null },
+  admin: { year:null, month:null, selected:null }
+};
+const shiftsCache = { user:{}, admin:{} }; // { 'YYYY-MM-DD': [ {id,...}, ... ] }
+
+function showView(name){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+}
+
+/* ---------------------------------------------------------------------
+   AUTH — tabs & forms
+   ------------------------------------------------------------------- */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('form-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+document.getElementById('form-login').addEventListener('submit', e => {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(err => errEl.textContent = friendlyAuthError(err));
+});
+
+document.getElementById('form-signup').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const errEl = document.getElementById('signup-error');
+  errEl.textContent = '';
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(cred => {
+      const role = ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
+      return db.ref('users/' + cred.user.uid).set({
+        name, email, role, createdAt: Date.now()
+      });
+    })
+    .catch(err => errEl.textContent = friendlyAuthError(err));
+});
+
+function friendlyAuthError(err){
+  switch(err.code){
+    case 'auth/email-already-in-use': return 'Un compte existe déjà avec cette adresse.';
+    case 'auth/invalid-email': return 'Adresse e-mail invalide.';
+    case 'auth/weak-password': return 'Le mot de passe doit faire au moins 6 caractères.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential': return 'E-mail ou mot de passe incorrect.';
+    default: return "Une erreur est survenue. Réessaie.";
+  }
+}
+
+document.getElementById('btn-logout-user').addEventListener('click', () => auth.signOut());
+document.getElementById('btn-logout-admin').addEventListener('click', () => auth.signOut());
+
+/* ---------------------------------------------------------------------
+   AUTH STATE — routing
+   ------------------------------------------------------------------- */
+auth.onAuthStateChanged(user => {
+  detachAllListeners();
+  if (!user) {
+    currentUid = null; currentRole = null; currentUserName = null;
+    showView('auth');
+    return;
+  }
+  currentUid = user.uid;
+  db.ref('users/' + user.uid).once('value').then(snap => {
+    const profile = snap.val();
+    if (!profile) { auth.signOut(); return; }
+    currentRole = profile.role;
+    currentUserName = profile.name;
+
+    const now = new Date();
+    calState.user.year = calState.admin.year = now.getFullYear();
+    calState.user.month = calState.admin.month = now.getMonth();
+
+    if (profile.role === 'admin') {
+      document.getElementById('admin-name-display').textContent = profile.name;
+      showView('admin');
+      loadAdminUserList();
+      loadAdminAnnouncements();
+      loadAdminLeaveRequests();
+      showAdminList();
+    } else {
+      document.getElementById('user-name-display').textContent = profile.name;
+      showView('user');
+      loadUserAnnouncements();
+      loadUserDocs(user.uid);
+      loadUserSchedule(user.uid);
+      loadUserLeaveRequests(user.uid);
+    }
+  });
+});
+
+function detachAllListeners(){
+  [docsRef, shiftsRef, userAnnounceRef, adminAnnounceRef, userLeaveRef, adminLeaveRef].forEach(ref => { if (ref) ref.off(); });
+  docsRef = shiftsRef = userAnnounceRef = adminAnnounceRef = userLeaveRef = adminLeaveRef = null;
+}
+
+/* ---------------------------------------------------------------------
+   Sidenav switching (user + admin, generic)
+   ------------------------------------------------------------------- */
+function wireSidenav(scopeSelector){
+  document.querySelectorAll(scopeSelector + ' .nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll(scopeSelector + ' .nav-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll(scopeSelector + ' .panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    });
+  });
+}
+wireSidenav('#view-user');
+wireSidenav('#view-admin');
+
+/* ---------------------------------------------------------------------
+   USER — documents
+   ------------------------------------------------------------------- */
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  const errEl = document.getElementById('upload-error');
+  errEl.textContent = '';
+  if (!file) return;
+  if (file.size > MAX_FILE_SIZE) {
+    errEl.textContent = 'Ce fichier dépasse la taille maximale autorisée (2 Mo).';
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    db.ref('documents/' + currentUid).push({
+      name: file.name,
+      type: file.type || 'fichier',
+      data: reader.result,
+      uploadedAt: Date.now(),
+      status: 'pending'
+    }).catch(err => errEl.textContent = "Le dépôt a échoué : " + err.message);
+    e.target.value = '';
+  };
+  reader.readAsDataURL(file);
+});
+
+function loadUserDocs(uid){
+  docsRef = db.ref('documents/' + uid);
+  docsRef.on('value', snap => renderDocList(snap, 'user-doc-list', true, false));
+}
+
+const STATUS_LABEL = { pending:'En attente', approved:'Validé', rejected:'Refusé' };
+
+function renderDocList(snap, containerId, ownedByViewer, showValidation){
+  const container = document.getElementById(containerId);
+  const val = snap.val();
+  if (!val) {
+    container.innerHTML = '<div class="empty-state">Aucun document déposé pour le moment.</div>';
+    return;
+  }
+  const uidForActions = containerId === 'user-doc-list' ? currentUid : adminViewingUid;
+  const entries = Object.entries(val).sort((a,b) => b[1].uploadedAt - a[1].uploadedAt);
+  container.innerHTML = entries.map(([id, doc]) => {
+    const status = doc.status || 'pending';
+    return `
+    <div class="doc-row">
+      <div class="doc-left">
+        <div>
+          <div class="doc-name">${escapeHtml(doc.name)}</div>
+          <div class="doc-meta">${formatDate(doc.uploadedAt)}</div>
+        </div>
+        <span class="badge badge-${status}">${STATUS_LABEL[status]}</span>
+      </div>
+      <div class="row-actions">
+        ${showValidation ? `
+          <button class="btn btn-small btn-outline-success" onclick="setDocStatus('${uidForActions}','${id}','approved')">Valider</button>
+          <button class="btn btn-small btn-outline-danger" onclick="setDocStatus('${uidForActions}','${id}','rejected')">Refuser</button>
+        ` : ''}
+        <button class="icon-btn" title="Télécharger" onclick="downloadDoc('${uidForActions}','${id}')">↓</button>
+        ${ownedByViewer ? `<button class="icon-btn danger" title="Supprimer" onclick="deleteDoc('${uidForActions}','${id}')">✕</button>` : ''}
+      </div>
+    </div>
+  `;
+  }).join('');
+}
+
+function setDocStatus(uid, docId, status){
+  db.ref(`documents/${uid}/${docId}/status`).set(status);
+}
+
+function downloadDoc(uid, docId){
+  db.ref(`documents/${uid}/${docId}`).once('value').then(snap => {
+    const doc = snap.val();
+    if (!doc) return;
+    const a = document.createElement('a');
+    a.href = doc.data;
+    a.download = doc.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+}
+
+function deleteDoc(uid, docId){
+  if (!confirm('Supprimer ce document ?')) return;
+  db.ref(`documents/${uid}/${docId}`).remove();
+}
+
+/* ---------------------------------------------------------------------
+   HORAIRES — calendrier (partagé user / admin)
+   ------------------------------------------------------------------- */
+function loadUserSchedule(uid){
+  shiftsRef = db.ref('schedules/' + uid);
+  shiftsRef.on('value', snap => {
+    shiftsCache.user = groupShiftsByDate(snap.val());
+    renderCalendar('user');
+  });
+}
+
+function groupShiftsByDate(val){
+  const map = {};
+  if (!val) return map;
+  Object.entries(val).forEach(([id, shift]) => {
+    if (!map[shift.date]) map[shift.date] = [];
+    map[shift.date].push({ id, ...shift });
+  });
+  return map;
+}
+
+function changeMonth(scope, delta){
+  const st = calState[scope];
+  st.month += delta;
+  if (st.month < 0) { st.month = 11; st.year--; }
+  if (st.month > 11) { st.month = 0; st.year++; }
+  st.selected = null;
+  renderCalendar(scope);
+}
+
+function selectDay(scope, dateStr){
+  calState[scope].selected = dateStr;
+  renderCalendar(scope);
+  if (scope === 'admin') {
+    const dateInput = document.getElementById('shift-date');
+    if (dateInput) dateInput.value = dateStr;
+  }
+}
+
+function renderCalendar(scope){
+  const st = calState[scope];
+  if (st.year === null) return;
+  const { year, month } = st;
+  const label = document.getElementById(scope + '-cal-label');
+  if (label) label.textContent = MONTH_NAMES[month] + ' ' + year;
+
+  const grid = document.getElementById(scope + '-cal-grid');
+  if (!grid) return;
+
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // 0 = lundi
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  const todayStr = toDateStr(new Date());
+
+  let html = DOW_LABELS.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  // jours du mois précédent (grisés, non cliquables)
+  for (let i = firstDow - 1; i >= 0; i--) {
+    html += `<div class="cal-cell">${daysInPrevMonth - i}</div>`;
+  }
+  // jours du mois courant
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = toDateStr(new Date(year, month, d));
+    const hasShift = !!shiftsCache[scope][dateStr];
+    const classes = ['cal-cell','in-month','clickable'];
+    if (dateStr === todayStr) classes.push('is-today');
+    if (dateStr === st.selected) classes.push('selected');
+    html += `<div class="${classes.join(' ')}" onclick="selectDay('${scope}','${dateStr}')">
+      <span>${d}</span>${hasShift ? '<span class="cal-dot"></span>' : ''}
+    </div>`;
+  }
+  // compléter la dernière semaine
+  const totalCells = firstDow + daysInMonth;
+  const trailing = (7 - (totalCells % 7)) % 7;
+  for (let d = 1; d <= trailing; d++) {
+    html += `<div class="cal-cell">${d}</div>`;
+  }
+
+  grid.innerHTML = html;
+  renderDayDetail(scope);
+}
+
+function renderDayDetail(scope){
+  const st = calState[scope];
+  const titleEl = document.getElementById(scope + '-cal-detail-title');
+  const listEl = document.getElementById(scope + '-cal-detail');
+  if (!titleEl || !listEl) return;
+
+  if (!st.selected) {
+    titleEl.textContent = '';
+    listEl.innerHTML = '';
+    return;
+  }
+  titleEl.textContent = formatFrDate(st.selected);
+  const shifts = (shiftsCache[scope][st.selected] || []).slice().sort((a,b) => a.start.localeCompare(b.start));
+  const allowDelete = scope === 'admin';
+  if (!shifts.length) {
+    listEl.innerHTML = '<div class="empty-state">Aucun horaire ce jour-là.</div>';
+    return;
+  }
+  const uidForActions = scope === 'admin' ? adminViewingUid : currentUid;
+  listEl.innerHTML = shifts.map(shift => `
+    <div class="shift-row">
+      <div class="shift-time">${shift.start} – ${shift.end}</div>
+      <div class="shift-note">${escapeHtml(shift.note || '')}</div>
+      ${allowDelete ? `<button class="icon-btn danger" title="Retirer" onclick="deleteShift('${uidForActions}','${shift.id}')">✕</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function deleteShift(uid, shiftId){
+  if (!confirm('Retirer ce créneau du planning ?')) return;
+  db.ref(`schedules/${uid}/${shiftId}`).remove();
+}
+
+/* ---------------------------------------------------------------------
+   ANNONCES
+   ------------------------------------------------------------------- */
+function loadUserAnnouncements(){
+  userAnnounceRef = db.ref('announcements');
+  userAnnounceRef.on('value', snap => renderAnnounceList(snap, 'user-announce-list', false));
+}
+function loadAdminAnnouncements(){
+  adminAnnounceRef = db.ref('announcements');
+  adminAnnounceRef.on('value', snap => renderAnnounceList(snap, 'admin-announce-list', true));
+}
+
+function renderAnnounceList(snap, containerId, allowDelete){
+  const container = document.getElementById(containerId);
+  const val = snap.val();
+  if (!val) {
+    container.innerHTML = '<div class="empty-state">Aucune annonce pour le moment.</div>';
+    return;
+  }
+  const entries = Object.entries(val).sort((a,b) => b[1].createdAt - a[1].createdAt);
+  container.innerHTML = entries.map(([id, a]) => `
+    <div class="announce-card">
+      <div class="a-title">${escapeHtml(a.title)}</div>
+      <div class="a-body">${escapeHtml(a.body)}</div>
+      <div class="a-meta">
+        <span>${escapeHtml(a.authorName)} — ${formatDate(a.createdAt)}</span>
+        ${allowDelete ? `<button class="icon-btn danger" title="Supprimer" onclick="deleteAnnouncement('${id}')">✕</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('form-announce').addEventListener('submit', e => {
+  e.preventDefault();
+  const title = document.getElementById('announce-title').value.trim();
+  const body = document.getElementById('announce-body').value.trim();
+  db.ref('announcements').push({ title, body, authorName: currentUserName, createdAt: Date.now() });
+  e.target.reset();
+});
+
+function deleteAnnouncement(id){
+  if (!confirm('Supprimer cette annonce ?')) return;
+  db.ref('announcements/' + id).remove();
+}
+
+/* ---------------------------------------------------------------------
+   DEMANDES DE CONGÉS / DISPONIBILITÉS
+   ------------------------------------------------------------------- */
+document.getElementById('form-leave-request').addEventListener('submit', e => {
+  e.preventDefault();
+  const startDate = document.getElementById('leave-start').value;
+  const endDate = document.getElementById('leave-end').value;
+  const reason = document.getElementById('leave-reason').value.trim();
+  db.ref('leaveRequests').push({
+    uid: currentUid, name: currentUserName,
+    startDate, endDate, reason,
+    status: 'pending', createdAt: Date.now()
+  });
+  e.target.reset();
+});
+
+function loadUserLeaveRequests(uid){
+  userLeaveRef = db.ref('leaveRequests');
+  userLeaveRef.on('value', snap => {
+    const val = snap.val() || {};
+    const mine = Object.entries(val).filter(([id, r]) => r.uid === uid);
+    renderLeaveList(mine, 'user-leave-list', false);
+  });
+}
+
+function loadAdminLeaveRequests(){
+  adminLeaveRef = db.ref('leaveRequests');
+  adminLeaveRef.on('value', snap => {
+    const val = snap.val() || {};
+    renderLeaveList(Object.entries(val), 'admin-leave-list', true);
+  });
+}
+
+function renderLeaveList(entries, containerId, allowActions){
+  const container = document.getElementById(containerId);
+  if (!entries.length) {
+    container.innerHTML = '<div class="empty-state">Aucune demande pour le moment.</div>';
+    return;
+  }
+  entries.sort((a,b) => b[1].createdAt - a[1].createdAt);
+  container.innerHTML = entries.map(([id, r]) => `
+    <div class="leave-card">
+      <div class="l-top">
+        <span class="l-name">${allowActions ? escapeHtml(r.name) : formatFrDate(r.startDate) + ' → ' + formatFrDate(r.endDate)}</span>
+        <span class="badge badge-${r.status}">${STATUS_LABEL[r.status]}</span>
+      </div>
+      ${allowActions ? `<div class="l-dates">${formatFrDate(r.startDate)} → ${formatFrDate(r.endDate)}</div>` : ''}
+      ${r.reason ? `<div class="l-reason">${escapeHtml(r.reason)}</div>` : ''}
+      ${allowActions ? `
+        <div class="l-actions">
+          <button class="btn btn-small btn-outline-success" onclick="setLeaveStatus('${id}','approved')">Approuver</button>
+          <button class="btn btn-small btn-outline-danger" onclick="setLeaveStatus('${id}','rejected')">Refuser</button>
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+function setLeaveStatus(id, status){
+  db.ref('leaveRequests/' + id + '/status').set(status);
+}
+
+/* ---------------------------------------------------------------------
+   ADMIN — liste de l'équipe
+   ------------------------------------------------------------------- */
+function loadAdminUserList(){
+  db.ref('users').on('value', snap => {
+    const val = snap.val() || {};
+    const container = document.getElementById('admin-user-list');
+    const entries = Object.entries(val).filter(([uid]) => uid !== currentUid);
+    if (!entries.length) {
+      container.innerHTML = '<div class="empty-state">Personne d\u2019autre n\u2019est encore inscrit·e.</div>';
+      return;
+    }
+    container.innerHTML = entries.map(([uid, u]) => `
+      <button class="user-card" onclick="openProfile('${uid}')">
+        <div class="u-name">${escapeHtml(u.name)}</div>
+        <div class="u-email">${escapeHtml(u.email)}</div>
+        ${u.role === 'admin' ? '<span class="badge">Admin</span>' : ''}
+      </button>
+    `).join('');
+  });
+}
+
+function showAdminList(){
+  adminViewingUid = null;
+  document.getElementById('admin-list-wrap').classList.remove('hidden');
+  document.getElementById('admin-profile-wrap').classList.add('hidden');
+  if (docsRef) { docsRef.off(); docsRef = null; }
+  if (shiftsRef) { shiftsRef.off(); shiftsRef = null; }
+}
+
+document.getElementById('btn-back-list').addEventListener('click', e => {
+  e.preventDefault();
+  showAdminList();
+});
+
+function openProfile(uid){
+  adminViewingUid = uid;
+  document.getElementById('admin-list-wrap').classList.add('hidden');
+  document.getElementById('admin-profile-wrap').classList.remove('hidden');
+
+  const now = new Date();
+  calState.admin.year = now.getFullYear();
+  calState.admin.month = now.getMonth();
+  calState.admin.selected = null;
+
+  db.ref('users/' + uid).once('value').then(snap => {
+    const u = snap.val();
+    document.getElementById('profile-name').textContent = u.name;
+    document.getElementById('profile-email').textContent = u.email;
+  });
+
+  docsRef = db.ref('documents/' + uid);
+  docsRef.on('value', snap => renderDocList(snap, 'admin-profile-docs', false, true));
+
+  shiftsRef = db.ref('schedules/' + uid);
+  shiftsRef.on('value', snap => {
+    shiftsCache.admin = groupShiftsByDate(snap.val());
+    renderCalendar('admin');
+  });
+}
+
+document.getElementById('form-add-shift').addEventListener('submit', e => {
+  e.preventDefault();
+  const date = document.getElementById('shift-date').value;
+  const start = document.getElementById('shift-start').value;
+  const end = document.getElementById('shift-end').value;
+  const note = document.getElementById('shift-note').value.trim();
+  if (!adminViewingUid) return;
+  db.ref('schedules/' + adminViewingUid).push({ date, start, end, note, createdAt: Date.now() });
+  e.target.reset();
+});
+
+/* ---------------------------------------------------------------------
+   Utilitaires
+   ------------------------------------------------------------------- */
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+function formatDate(ts){
+  return new Date(ts).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function formatFrDate(isoDate){
+  const [y,m,d] = isoDate.split('-');
+  return `${d}/${m}/${y}`;
+}
+function toDateStr(dateObj){
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2,'0');
+  const d = String(dateObj.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+</script>
+</body>
+</html>
