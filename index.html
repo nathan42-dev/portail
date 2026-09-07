@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NL Production — Espace équipe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<style>
+:root{
+  --bg:#08080a;
+  --bg-alt:#111116;
+  --panel:rgba(22,22,27,0.62);
+  --panel-solid:#16161b;
+  --border:rgba(245,242,234,0.09);
+  --border-strong:rgba(245,242,234,0.18);
+  --text:#f2efe6;
+  --text-dim:#9a97a0;
+  --text-faint:#5f5d66;
+  --accent:#f5a623;
+  --accent-dim:#c98618;
+  --accent-wash:rgba(245,166,35,0.12);
+  --danger:#e2483d;
+  --success:#4caf7d;
+  --radius:6px;
+  --radius-sm:2px;
+  --font-display:'Bebas Neue',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:
+    radial-gradient(ellipse at 20% -10%, #1b1610 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 110%, #0f1512 0%, transparent 50%),
+    var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+#grain{
+  position:fixed;inset:0;pointer-events:none;z-index:999;opacity:0.035;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+input{font-family:inherit;color:var(--text);}
+.hidden{display:none !important;}
+.view{display:none;min-height:100vh;}
+.view.active{display:block;}
+
+/* ---------- glass panel ---------- */
+.glass{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+
+/* ---------- AUTH VIEW ---------- */
+#view-auth{
+  display:none;
+  align-items:center;justify-content:center;
+  padding:24px;
+}
+#view-auth.active{display:flex;}
+.auth-backdrop{
+  position:fixed;inset:0;z-index:0;
+  background:
+    linear-gradient(180deg, rgba(8,8,10,0.2) 0%, rgba(8,8,10,0.85) 78%, #08080a 100%),
+    linear-gradient(115deg, transparent 40%, rgba(245,166,35,0.05) 48%, transparent 56%);
+}
+.auth-panel{
+  position:relative;z-index:1;
+  width:100%;max-width:400px;
+  padding:40px 36px 36px;
+  animation:reveal 0.7s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes reveal{
+  from{opacity:0;transform:translateY(14px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.brand{display:flex;align-items:baseline;gap:8px;margin-bottom:32px;}
+.brand-mark{
+  font-family:var(--font-display);font-size:34px;letter-spacing:1px;color:var(--accent);line-height:1;
+}
+.brand-name{
+  font-family:var(--font-display);font-size:20px;letter-spacing:3px;color:var(--text-dim);line-height:1;
+}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:26px;}
+.tab-btn{
+  flex:1;padding:0 0 12px;font-size:14px;font-weight:600;color:var(--text-faint);
+  border-bottom:2px solid transparent;transition:color .2s ease, border-color .2s ease;
+}
+.tab-btn.active{color:var(--text);border-bottom-color:var(--accent);}
+.auth-form{display:none;flex-direction:column;gap:14px;}
+.auth-form.active{display:flex;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:12px;color:var(--text-dim);}
+.field input{
+  background:rgba(0,0,0,0.28);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:11px 12px;font-size:14px;transition:border-color .15s ease;
+}
+.field input:focus{outline:none;border-color:var(--accent);}
+.btn{
+  padding:12px 18px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;
+  transition:filter .15s ease, transform .1s ease;
+}
+.btn:active{transform:scale(0.98);}
+.btn-primary{background:var(--accent);color:#1a1204;margin-top:6px;}
+.btn-primary:hover{filter:brightness(1.08);}
+.btn-primary:focus-visible, .tab-btn:focus-visible, .nav-item:focus-visible, .btn-ghost:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px;
+}
+.btn-ghost{border:1px solid var(--border-strong);color:var(--text-dim);}
+.btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+.btn-small{padding:8px 12px;font-size:12.5px;}
+.form-error{
+  font-size:12.5px;color:var(--danger);min-height:16px;
+}
+
+/* ---------- APP SHELL (user + admin) ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 28px;border-bottom:1px solid var(--border);
+  background:rgba(10,10,12,0.7);backdrop-filter:blur(10px);
+  position:sticky;top:0;z-index:10;
+}
+.topbar .brand{margin:0;}
+.topbar .brand-mark{font-size:24px;}
+.topbar .brand-name{font-size:14px;letter-spacing:2px;}
+.who{display:flex;align-items:center;gap:16px;}
+.who-name{font-size:13px;color:var(--text-dim);}
+.who-name b{color:var(--text);font-weight:600;}
+
+.layout{display:flex;min-height:calc(100vh - 61px);}
+.sidenav{
+  width:210px;flex-shrink:0;border-right:1px solid var(--border);
+  padding:24px 12px;display:flex;flex-direction:column;gap:2px;
+}
+.nav-item{
+  text-align:left;padding:11px 14px;border-radius:var(--radius-sm);font-size:14px;color:var(--text-dim);
+  border-left:2px solid transparent;transition:all .15s ease;
+}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,0.03);}
+.nav-item.active{color:var(--text);border-left-color:var(--accent);background:var(--accent-wash);}
+.content{flex:1;padding:36px 40px;max-width:920px;}
+.panel{display:none;}
+.panel.active{display:block;animation:fadein .35s ease both;}
+@keyframes fadein{from{opacity:0;}to{opacity:1;}}
+
+h1.page-title{font-family:var(--font-display);font-size:32px;letter-spacing:0.5px;margin-bottom:6px;}
+.page-sub{color:var(--text-dim);font-size:13.5px;margin-bottom:28px;}
+
+/* ---------- documents ---------- */
+.upload-zone{
+  border:1px dashed var(--border-strong);border-radius:var(--radius);
+  padding:22px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin-bottom:24px;flex-wrap:wrap;
+}
+.upload-zone .hint{font-size:12.5px;color:var(--text-faint);}
+.file-input-label{
+  display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:var(--radius-sm);
+  background:var(--accent);color:#1a1204;font-size:13.5px;font-weight:600;
+}
+.file-input-label input{display:none;}
+.doc-list, .shift-list{display:flex;flex-direction:column;gap:10px;}
+.doc-row, .shift-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius);
+  background:rgba(255,255,255,0.015);
+}
+.doc-row .doc-name{font-size:14px;font-weight:500;}
+.doc-row .doc-meta{font-size:11.5px;color:var(--text-faint);font-family:var(--font-mono);}
+.row-actions{display:flex;gap:8px;flex-shrink:0;}
+.icon-btn{
+  width:32px;height:32px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--border-strong);color:var(--text-dim);font-size:14px;
+}
+.icon-btn:hover{color:var(--text);border-color:var(--accent);}
+.icon-btn.danger:hover{color:var(--danger);border-color:var(--danger);}
+.empty-state{
+  padding:40px 20px;text-align:center;color:var(--text-faint);font-size:13.5px;
+  border:1px solid var(--border);border-radius:var(--radius);
+}
+
+/* ---------- schedule ---------- */
+.shift-row .shift-date{font-family:var(--font-mono);font-size:13px;color:var(--accent);width:110px;flex-shrink:0;}
+.shift-row .shift-time{font-family:var(--font-mono);font-size:13px;color:var(--text);width:110px;flex-shrink:0;}
+.shift-row .shift-note{font-size:13px;color:var(--text-dim);flex:1;}
+
+/* ---------- admin ---------- */
+.admin-content{max-width:1040px;}
+.user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.user-card{
+  border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:left;
+  background:rgba(255,255,255,0.015);transition:border-color .15s ease, transform .1s ease;
+}
+.user-card:hover{border-color:var(--accent);transform:translateY(-1px);}
+.user-card .u-name{font-size:15px;font-weight:600;margin-bottom:4px;}
+.user-card .u-email{font-size:12.5px;color:var(--text-faint);margin-bottom:10px;}
+.badge{
+  display:inline-block;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:20px;
+  background:rgba(245,166,35,0.14);color:var(--accent);
+}
+.back-link{font-size:13px;color:var(--text-dim);margin-bottom:22px;display:inline-block;}
+.back-link:hover{color:var(--accent);}
+.profile-header{margin-bottom:28px;}
+.profile-header .p-name{font-family:var(--font-display);font-size:28px;letter-spacing:0.5px;}
+.profile-header .p-email{color:var(--text-dim);font-size:13.5px;}
+.profile-columns{display:grid;grid-template-columns:1fr 1.15fr;gap:36px;}
+.profile-columns h2{font-size:15px;font-weight:600;margin-bottom:14px;color:var(--text-dim);}
+.shift-form{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px;background:rgba(255,255,255,0.015);
+}
+.shift-form .field-note{grid-column:1 / -1;}
+.shift-form .btn{grid-column:1 / -1;}
+
+@media (max-width:800px){
+  .layout{flex-direction:column;}
+  .sidenav{width:100%;flex-direction:row;border-right:none;border-bottom:1px solid var(--border);padding:10px 16px;overflow-x:auto;}
+  .content{padding:26px 20px;}
+  .profile-columns{grid-template-columns:1fr;}
+  .shift-form{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important;transition-duration:0.001ms !important;}
+}
+</style>
+</head>
+<body>
+<div id="grain"></div>
+<div id="app">
+
+  <!-- ===================== AUTH ===================== -->
+  <section id="view-auth" class="view active">
+    <div class="auth-backdrop"></div>
+    <div class="auth-panel glass">
+      <div class="brand">
+        <span class="brand-mark">NL</span>
+        <span class="brand-name">PRODUCTION</span>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="tab-btn active" data-tab="login">Connexion</button>
+        <button class="tab-btn" data-tab="signup">Créer un compte</button>
+      </div>
+
+      <form id="form-login" class="auth-form active">
+        <div class="field">
+          <label for="login-email">Adresse e-mail</label>
+          <input type="email" id="login-email" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="login-password">Mot de passe</label>
+          <input type="password" id="login-password" required autocomplete="current-password">
+        </div>
+        <div class="form-error" id="login-error"></div>
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+      </form>
+
+      <form id="form-signup" class="auth-form">
+        <div class="field">
+          <label for="signup-name">Nom complet</label>
+          <input type="text" id="signup-name" required autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="signup-email">Adresse e-mail</label>
+          <input type="email" id="signup-email" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="signup-password">Mot de passe</label>
+          <input type="password" id="signup-password" required autocomplete="new-password" minlength="6">
+        </div>
+        <div class="form-error" id="signup-error"></div>
+        <button type="submit" class="btn btn-primary">Créer mon compte</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== USER (EMPLOYÉ) ===================== -->
+  <section id="view-user" class="view">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">NL</span><span class="brand-name">PRODUCTION</span></div>
+      <div class="who">
+        <span class="who-name">Connecté·e — <b id="user-name-display"></b></span>
+        <button class="btn btn-ghost btn-small" id="btn-logout-user">Se déconnecter</button>
+      </div>
+    </header>
+    <div class="layout">
+      <nav class="sidenav">
+        <button class="nav-item active" data-panel="docs">Mes documents</button>
+        <button class="nav-item" data-panel="schedule">Mes horaires</button>
+      </nav>
+      <main class="content">
+        <div id="panel-docs" class="panel active">
+          <h1 class="page-title">Mes documents</h1>
+          <p class="page-sub">Dépose ici tes justificatifs, contrats ou pièces demandées par l'équipe.</p>
+          <div class="upload-zone">
+            <span class="hint">Formats acceptés : PDF, image, Word — 2 Mo maximum.</span>
+            <label class="file-input-label">
+              Ajouter un document
+              <input type="file" id="file-input">
+            </label>
+          </div>
+          <div class="form-error" id="upload-error"></div>
+          <div class="doc-list" id="user-doc-list"></div>
+        </div>
+
+        <div id="panel-schedule" class="panel">
+          <h1 class="page-title">Mes horaires</h1>
+          <p class="page-sub">Le planning est mis à jour par l'équipe administrative.</p>
+          <div class="shift-list" id="user-shift-list"></div>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ===================== ADMIN ===================== -->
+  <section id="view-admin" class="view">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">NL</span><span class="brand-name">PRODUCTION · ADMIN</span></div>
+      <div class="who">
+        <span class="who-name">Connecté·e — <b id="admin-name-display"></b></span>
+        <button class="btn btn-ghost btn-small" id="btn-logout-admin">Se déconnecter</button>
+      </div>
+    </header>
+    <div class="layout">
+      <main class="content admin-content">
+
+        <div id="admin-list-wrap">
+          <h1 class="page-title">Équipe</h1>
+          <p class="page-sub">Clique sur une personne pour voir ses documents et gérer son planning.</p>
+          <div class="user-grid" id="admin-user-list"></div>
+        </div>
+
+        <div id="admin-profile-wrap" class="hidden">
+          <a href="#" class="back-link" id="btn-back-list">← Retour à l'équipe</a>
+          <div class="profile-header">
+            <div class="p-name" id="profile-name"></div>
+            <div class="p-email" id="profile-email"></div>
+          </div>
+          <div class="profile-columns">
+            <div class="profile-col">
+              <h2>Documents déposés</h2>
+              <div class="doc-list" id="admin-profile-docs"></div>
+            </div>
+            <div class="profile-col">
+              <h2>Planning</h2>
+              <form class="shift-form" id="form-add-shift">
+                <div class="field">
+                  <label for="shift-date">Date</label>
+                  <input type="date" id="shift-date" required>
+                </div>
+                <div class="field">
+                  <label for="shift-start">Début</label>
+                  <input type="time" id="shift-start" required>
+                </div>
+                <div class="field">
+                  <label for="shift-end">Fin</label>
+                  <input type="time" id="shift-end" required>
+                </div>
+                <div class="field field-note">
+                  <label for="shift-note">Note (lieu, mission…)</label>
+                  <input type="text" id="shift-note" placeholder="Ex. Régie son — Château de Vallon">
+                </div>
+                <button type="submit" class="btn btn-primary btn-small">Ajouter au planning</button>
+              </form>
+              <div class="shift-list" id="admin-profile-shifts"></div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURATION — à compléter avant mise en ligne
+   ===================================================================== */
+
+// 1) Colle ici la config de ton projet Firebase (Console Firebase >
+//    Paramètres du projet > Tes applications > Config SDK).
+const firebaseConfig = {
+  apiKey: "AIzaSyDziYM0kObVHlNy1nv0xPyVK1t0qY_WP8o",
+  authDomain: "plateforme-eccc0.firebaseapp.com",
+  databaseURL: "https://plateforme-eccc0-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "plateforme-eccc0",
+  storageBucket: "plateforme-eccc0.firebasestorage.app",
+  messagingSenderId: "271916142524",
+  appId: "1:271916142524:web:4ba74a43b2f9b65b05a5b9"
+};
+
+// 2) Toute adresse listée ici devient automatiquement administratrice
+//    dès la création de son compte.
+const ADMIN_EMAILS = ["nathan.lamoste3@gmail.com"];
+
+// 3) Taille maximale d'un document déposé (en octets). 2 Mo par défaut.
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+
+/* =====================================================================
+   INITIALISATION
+   ===================================================================== */
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let currentUid = null;
+let currentRole = null;
+let adminViewingUid = null;
+let docsRef = null, shiftsRef = null; // active listeners refs for cleanup
+
+function showView(name){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+}
+
+/* ---------------------------------------------------------------------
+   AUTH — tabs & forms
+   ------------------------------------------------------------------- */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('form-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+document.getElementById('form-login').addEventListener('submit', e => {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(err => errEl.textContent = friendlyAuthError(err));
+});
+
+document.getElementById('form-signup').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const errEl = document.getElementById('signup-error');
+  errEl.textContent = '';
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(cred => {
+      const role = ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
+      return db.ref('users/' + cred.user.uid).set({
+        name, email, role, createdAt: Date.now()
+      });
+    })
+    .catch(err => errEl.textContent = friendlyAuthError(err));
+});
+
+function friendlyAuthError(err){
+  switch(err.code){
+    case 'auth/email-already-in-use': return 'Un compte existe déjà avec cette adresse.';
+    case 'auth/invalid-email': return 'Adresse e-mail invalide.';
+    case 'auth/weak-password': return 'Le mot de passe doit faire au moins 6 caractères.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential': return 'E-mail ou mot de passe incorrect.';
+    default: return "Une erreur est survenue. Réessaie.";
+  }
+}
+
+document.getElementById('btn-logout-user').addEventListener('click', () => auth.signOut());
+document.getElementById('btn-logout-admin').addEventListener('click', () => auth.signOut());
+
+/* ---------------------------------------------------------------------
+   AUTH STATE — routing
+   ------------------------------------------------------------------- */
+auth.onAuthStateChanged(user => {
+  detachListeners();
+  if (!user) {
+    currentUid = null; currentRole = null;
+    showView('auth');
+    return;
+  }
+  currentUid = user.uid;
+  db.ref('users/' + user.uid).once('value').then(snap => {
+    const profile = snap.val();
+    if (!profile) { auth.signOut(); return; }
+    currentRole = profile.role;
+    if (profile.role === 'admin') {
+      document.getElementById('admin-name-display').textContent = profile.name;
+      showView('admin');
+      loadAdminUserList();
+      showAdminList();
+    } else {
+      document.getElementById('user-name-display').textContent = profile.name;
+      showView('user');
+      loadUserDocs(user.uid);
+      loadUserSchedule(user.uid);
+    }
+  });
+});
+
+function detachListeners(){
+  if (docsRef) { docsRef.off(); docsRef = null; }
+  if (shiftsRef) { shiftsRef.off(); shiftsRef = null; }
+}
+
+/* ---------------------------------------------------------------------
+   USER — sidenav
+   ------------------------------------------------------------------- */
+document.querySelectorAll('#view-user .nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#view-user .nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#view-user .panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+  });
+});
+
+/* ---------------------------------------------------------------------
+   USER — documents
+   ------------------------------------------------------------------- */
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  const errEl = document.getElementById('upload-error');
+  errEl.textContent = '';
+  if (!file) return;
+  if (file.size > MAX_FILE_SIZE) {
+    errEl.textContent = 'Ce fichier dépasse la taille maximale autorisée (2 Mo).';
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    db.ref('documents/' + currentUid).push({
+      name: file.name,
+      type: file.type || 'fichier',
+      data: reader.result,
+      uploadedAt: Date.now()
+    }).catch(err => errEl.textContent = "Le dépôt a échoué : " + err.message);
+    e.target.value = '';
+  };
+  reader.readAsDataURL(file);
+});
+
+function loadUserDocs(uid){
+  docsRef = db.ref('documents/' + uid);
+  docsRef.on('value', snap => renderDocList(snap, 'user-doc-list', true));
+}
+
+function renderDocList(snap, containerId, ownedByViewer){
+  const container = document.getElementById(containerId);
+  const val = snap.val();
+  if (!val) {
+    container.innerHTML = '<div class="empty-state">Aucun document déposé pour le moment.</div>';
+    return;
+  }
+  const uidForActions = containerId === 'user-doc-list' ? currentUid : adminViewingUid;
+  const entries = Object.entries(val).sort((a,b) => b[1].uploadedAt - a[1].uploadedAt);
+  container.innerHTML = entries.map(([id, doc]) => `
+    <div class="doc-row">
+      <div>
+        <div class="doc-name">${escapeHtml(doc.name)}</div>
+        <div class="doc-meta">${formatDate(doc.uploadedAt)}</div>
+      </div>
+      <div class="row-actions">
+        <button class="icon-btn" title="Télécharger" onclick="downloadDoc('${uidForActions}','${id}')">↓</button>
+        ${ownedByViewer ? `<button class="icon-btn danger" title="Supprimer" onclick="deleteDoc('${uidForActions}','${id}')">✕</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function downloadDoc(uid, docId){
+  db.ref(`documents/${uid}/${docId}`).once('value').then(snap => {
+    const doc = snap.val();
+    if (!doc) return;
+    const a = document.createElement('a');
+    a.href = doc.data;
+    a.download = doc.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+}
+
+function deleteDoc(uid, docId){
+  if (!confirm('Supprimer ce document ?')) return;
+  db.ref(`documents/${uid}/${docId}`).remove();
+}
+
+/* ---------------------------------------------------------------------
+   USER — horaires
+   ------------------------------------------------------------------- */
+function loadUserSchedule(uid){
+  shiftsRef = db.ref('schedules/' + uid);
+  shiftsRef.on('value', snap => renderShiftList(snap, 'user-shift-list', false));
+}
+
+function renderShiftList(snap, containerId, allowDelete){
+  const container = document.getElementById(containerId);
+  const val = snap.val();
+  if (!val) {
+    container.innerHTML = '<div class="empty-state">Aucun horaire programmé pour le moment.</div>';
+    return;
+  }
+  const uidForActions = adminViewingUid;
+  const entries = Object.entries(val).sort((a,b) => (a[1].date+a[1].start).localeCompare(b[1].date+b[1].start));
+  container.innerHTML = entries.map(([id, shift]) => `
+    <div class="shift-row">
+      <div class="shift-date">${formatFrDate(shift.date)}</div>
+      <div class="shift-time">${shift.start} – ${shift.end}</div>
+      <div class="shift-note">${escapeHtml(shift.note || '')}</div>
+      ${allowDelete ? `<button class="icon-btn danger" title="Retirer" onclick="deleteShift('${uidForActions}','${id}')">✕</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function deleteShift(uid, shiftId){
+  if (!confirm('Retirer ce créneau du planning ?')) return;
+  db.ref(`schedules/${uid}/${shiftId}`).remove();
+}
+
+/* ---------------------------------------------------------------------
+   ADMIN — liste de l'équipe
+   ------------------------------------------------------------------- */
+function loadAdminUserList(){
+  db.ref('users').on('value', snap => {
+    const val = snap.val() || {};
+    const container = document.getElementById('admin-user-list');
+    const entries = Object.entries(val).filter(([uid]) => uid !== currentUid);
+    if (!entries.length) {
+      container.innerHTML = '<div class="empty-state">Personne d\u2019autre n\u2019est encore inscrit·e.</div>';
+      return;
+    }
+    container.innerHTML = entries.map(([uid, u]) => `
+      <button class="user-card" onclick="openProfile('${uid}')">
+        <div class="u-name">${escapeHtml(u.name)}</div>
+        <div class="u-email">${escapeHtml(u.email)}</div>
+        ${u.role === 'admin' ? '<span class="badge">Admin</span>' : ''}
+      </button>
+    `).join('');
+  });
+}
+
+function showAdminList(){
+  adminViewingUid = null;
+  document.getElementById('admin-list-wrap').classList.remove('hidden');
+  document.getElementById('admin-profile-wrap').classList.add('hidden');
+  if (docsRef) { docsRef.off(); docsRef = null; }
+  if (shiftsRef) { shiftsRef.off(); shiftsRef = null; }
+}
+
+document.getElementById('btn-back-list').addEventListener('click', e => {
+  e.preventDefault();
+  showAdminList();
+});
+
+function openProfile(uid){
+  adminViewingUid = uid;
+  document.getElementById('admin-list-wrap').classList.add('hidden');
+  document.getElementById('admin-profile-wrap').classList.remove('hidden');
+
+  db.ref('users/' + uid).once('value').then(snap => {
+    const u = snap.val();
+    document.getElementById('profile-name').textContent = u.name;
+    document.getElementById('profile-email').textContent = u.email;
+  });
+
+  docsRef = db.ref('documents/' + uid);
+  docsRef.on('value', snap => renderDocList(snap, 'admin-profile-docs', false));
+
+  shiftsRef = db.ref('schedules/' + uid);
+  shiftsRef.on('value', snap => renderShiftList(snap, 'admin-profile-shifts', true));
+}
+
+document.getElementById('form-add-shift').addEventListener('submit', e => {
+  e.preventDefault();
+  const date = document.getElementById('shift-date').value;
+  const start = document.getElementById('shift-start').value;
+  const end = document.getElementById('shift-end').value;
+  const note = document.getElementById('shift-note').value.trim();
+  if (!adminViewingUid) return;
+  db.ref('schedules/' + adminViewingUid).push({ date, start, end, note, createdAt: Date.now() });
+  e.target.reset();
+});
+
+/* ---------------------------------------------------------------------
+   Utilitaires
+   ------------------------------------------------------------------- */
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+function formatDate(ts){
+  return new Date(ts).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function formatFrDate(isoDate){
+  const [y,m,d] = isoDate.split('-');
+  return `${d}/${m}/${y}`;
+}
+</script>
+</body>
+</html>
